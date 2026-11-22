@@ -22,6 +22,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tv
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -336,6 +339,112 @@ private fun MicroTvApp() {
                         }, enabled = !loading) { Text(if (allSearchResults == null) "Search all 36 pages" else "Refresh all-page results") }
                     }
                 }
+                if (tab == "Home" && visible.isNotEmpty()) {
+                    item {
+                        Text("WELCOME TO AKKI", color = Color(0xFF25D7FF),
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(8.dp))
+                        val featured = visible.first()
+                        Card(
+                            Modifier.fillMaxWidth().height(218.dp).clickable {
+                                selected = featured
+                                history = (listOf(featured) + history.filterNot { it.url == featured.url }).take(40)
+                                val saved = JSONArray()
+                                history.forEach { entry -> saved.put(JSONObject().put("title", entry.title).put("url", entry.url).put("image", entry.image ?: "")) }
+                                prefs.edit().putString("history_items", saved.toString()).apply()
+                            },
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Box(Modifier.fillMaxSize().background(
+                                Brush.linearGradient(listOf(Color(0xFF512DA8), Color(0xFF151B43), Color(0xFF071326)))
+                            )) {
+                                if (featured.image != null) coil.compose.AsyncImage(
+                                    model = featured.image, contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    alpha = 0.48f
+                                )
+                                Box(Modifier.fillMaxSize().background(
+                                    Brush.horizontalGradient(listOf(Color(0xDD080B1D), Color.Transparent))
+                                ))
+                                Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                                    Text("FEATURED SHOW", color = Color(0xFF35D7FF),
+                                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(featured.title, color = Color.White,
+                                        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold,
+                                        maxLines = 2)
+                                    Spacer(Modifier.height(10.dp))
+                                    Button(onClick = {
+                                        selected = featured
+                                        history = (listOf(featured) + history.filterNot { it.url == featured.url }).take(40)
+                                        val saved = JSONArray()
+                                        history.forEach { entry -> saved.put(JSONObject().put("title", entry.title).put("url", entry.url).put("image", entry.image ?: "")) }
+                                        prefs.edit().putString("history_items", saved.toString()).apply()
+                                    }, shape = RoundedCornerShape(50)) {
+                                        Icon(Icons.Default.PlayArrow, null)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Watch now")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Text("DISCOVER", color = Color.White, fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(10.dp))
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("All shows", "Trending", "Popular", "Recently added").forEachIndexed { index, label ->
+                                Surface(shape = RoundedCornerShape(50),
+                                    color = if (index == 0) Color(0xFF713BFF) else Color(0xFF1A2040)) {
+                                    Text(label, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text("Trending dramas", color = Color.White, fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge)
+                            Text("HOT", color = Color(0xFFFFC928), fontWeight = FontWeight.ExtraBold)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(visible.take(12), key = { it.url }) { show ->
+                                Column(Modifier.width(124.dp).clickable {
+                                    selected = show
+                                    history = (listOf(show) + history.filterNot { it.url == show.url }).take(40)
+                                    val saved = JSONArray()
+                                    history.forEach { entry -> saved.put(JSONObject().put("title", entry.title).put("url", entry.url).put("image", entry.image ?: "")) }
+                                    prefs.edit().putString("history_items", saved.toString()).apply()
+                                }) {
+                                    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().height(154.dp)) {
+                                        Box(Modifier.fillMaxSize().background(Color(0xFF22284A))) {
+                                            if (show.image != null) coil.compose.AsyncImage(
+                                                model = show.image, contentDescription = show.title,
+                                                modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                            )
+                                            Box(Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                                                .background(Color(0xCC713BFF), RoundedCornerShape(50)).padding(6.dp)) {
+                                                Icon(Icons.Default.PlayArrow, null, tint = Color.White)
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(7.dp))
+                                    Text(show.title, color = Color.White, fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Text("Explore all shows", color = Color.White, fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge)
+                    }
+                }
                 items(visible, key = { it.url }) { item ->
                     Card(
                         Modifier.fillMaxWidth().clickable {
@@ -359,7 +468,7 @@ private fun MicroTvApp() {
                             Column(Modifier.weight(1f)) {
                                 Text(item.title, fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.titleMedium, color = Color.White)
-                                Text("Tap to play inside Akki MicroTV",
+                                Text("Watch on Akki MicroTV",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
