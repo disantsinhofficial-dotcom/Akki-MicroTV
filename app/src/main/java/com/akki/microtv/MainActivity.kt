@@ -96,9 +96,9 @@ private fun MicroTvApp() {
     var page by remember { mutableIntStateOf(1) }
     val prefs = remember { context.getSharedPreferences("akki_microtv", 0) }
     var history by remember {
-        mutableStateOf(run {
+        mutableStateOf<List<ShowItem>>(run {
             val raw = prefs.getString("history_items", null)
-            if (raw == null) emptyList() else try {
+            if (raw == null) emptyList<ShowItem>() else try {
                 val array = JSONArray(raw)
                 (0 until array.length()).mapNotNull { i ->
                     val obj = array.optJSONObject(i) ?: return@mapNotNull null
@@ -107,7 +107,7 @@ private fun MicroTvApp() {
                     if (title.isNotBlank() && url.startsWith("https://m.microtv.st/"))
                         ShowItem(title, url, obj.optString("image").takeIf { it.isNotBlank() }) else null
                 }
-            } catch (_: Exception) { emptyList() }
+            } catch (_: Exception) { emptyList<ShowItem>() }
         })
     }
     var allSearchResults by remember { mutableStateOf<List<ShowItem>?>(null) }
