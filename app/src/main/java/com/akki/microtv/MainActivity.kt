@@ -14,6 +14,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Tv
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,9 +55,10 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
-                primary = Color(0xFFB9A0FF),
-                background = Color(0xFF101014),
-                surface = Color(0xFF1B1B23)
+                primary = Color(0xFFD34DFF),
+                secondary = Color(0xFF18C8FF),
+                background = Color(0xFF080B1D),
+                surface = Color(0xFF11152D)
             )) { MicroTvApp() }
         }
     }
@@ -112,6 +118,12 @@ private fun MicroTvApp() {
     }
     var allSearchResults by remember { mutableStateOf<List<ShowItem>?>(null) }
     val scope = rememberCoroutineScope()
+    var splashVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { delay(1500); splashVisible = false }
+    if (splashVisible) {
+        AkkiSplash()
+        return
+    }
 
     fun load(target: Int) {
         if (loading || target !in 1..MAX_PAGE) return
@@ -214,14 +226,21 @@ private fun MicroTvApp() {
         }
     } else {
         Scaffold(
+            containerColor = Color(0xFF080B1D),
             topBar = {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
-                    Text("AKKI", style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text("MicroTV", style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold)
-                    Text("Short dramas • Vertical stories", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth().background(
+                    Brush.verticalGradient(listOf(Color(0xFF17133B), Color(0xFF080B1D)))
+                ).padding(horizontal = 18.dp, vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AkkiLogo(Modifier.size(54.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Akki MicroTV", style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.ExtraBold, color = Color.White)
+                            Text("WATCH • EXPLORE • ENJOY", style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF27CFFF), fontWeight = FontWeight.Bold)
+                        }
+                    }
                     OutlinedTextField(
                         value = query, onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -249,7 +268,8 @@ private fun MicroTvApp() {
             ) {
                 item {
                     Text(if (tab == "History") "Recently opened" else "Explore dramas",
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        color = Color.White)
                     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(vertical = 10.dp)) }
@@ -292,7 +312,7 @@ private fun MicroTvApp() {
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(item.title, fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.titleMedium)
+                                    style = MaterialTheme.typography.titleMedium, color = Color.White)
                                 Text("Tap to play inside Akki MicroTV",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -326,6 +346,38 @@ private fun MicroTvApp() {
                     }) { Text("Open MicroTV website") }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AkkiLogo(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(
+            Brush.linearGradient(listOf(Color(0xFFFFC928), Color(0xFFFF35A5), Color(0xFF713BFF), Color(0xFF00CFFF))),
+            RoundedCornerShape(18.dp)
+        ).padding(3.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(Modifier.fillMaxSize().background(Color(0xFF080B1D), RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Tv, contentDescription = "Akki MicroTV", tint = Color(0xFFFFC928), modifier = Modifier.fillMaxSize(0.78f))
+            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.fillMaxSize(0.48f))
+        }
+    }
+}
+
+@Composable
+private fun AkkiSplash() {
+    Box(Modifier.fillMaxSize().background(
+        Brush.linearGradient(listOf(Color(0xFF080B1D), Color(0xFF21104C), Color(0xFF071B3B)))
+    ), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AkkiLogo(Modifier.size(148.dp))
+            Spacer(Modifier.height(22.dp))
+            Text("Akki MicroTV", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text("WATCH • EXPLORE • ENJOY", style = MaterialTheme.typography.labelLarge, color = Color(0xFF31D5FF), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(34.dp))
+            CircularProgressIndicator(color = Color(0xFFD34DFF), strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
         }
     }
 }
