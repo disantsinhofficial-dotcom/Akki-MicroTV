@@ -1,6 +1,8 @@
 package com.akki.microtv
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
@@ -97,6 +99,8 @@ private fun MicroTvApp() {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var selected by remember { mutableStateOf<ShowItem?>(null) }
+    var playerLoading by remember { mutableStateOf(false) }
+    var playerError by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Home") }
     var page by remember { mutableIntStateOf(1) }
@@ -155,7 +159,7 @@ private fun MicroTvApp() {
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { selected = null }) {
+                IconButton(onClick = { selected = null; playerError = null }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
                 Text(
@@ -167,6 +171,7 @@ private fun MicroTvApp() {
             }
             // Embedded HTML5 player stays inside Akki MicroTV. The site supplies the
             // authorized iframe/player URL; no protected media URL is guessed or extracted.
+            Box(Modifier.fillMaxSize()) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -175,16 +180,43 @@ private fun MicroTvApp() {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.databaseEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = false
+                        settings.mediaPlaybackRequiresUserGesture = true
                         settings.loadsImagesAutomatically = true
-                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                        settings.javaScriptCanOpenWindowsAutomatically = true
-                        settings.setSupportMultipleWindows(true)
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                        settings.javaScriptCanOpenWindowsAutomatically = false
+                        settings.setSupportMultipleWindows(false)
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
+                        settings.cacheMode = WebSettings.LOAD_DEFAULT
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                        webViewClient = WebViewClient()
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                                playerLoading = true
+                                playerError = null
+                            }
+                            override fun onPageFinished(view: WebView, url: String) {
+                                playerLoading = false
+                                view.evaluateJavascript("(document.title + ' ' + document.body.innerText.substring(0, Math.min(1200, document.body.innerText.length))).toLowerCase()") { result ->
+                                    if (result?.contains("you have been blocked") == true ||
+                                        result?.contains("unable to access microtv") == true) {
+                                        playerError = "MicroTV ki security service ne access block kiya hai. App is block ko bypass nahi kar sakta."
+                                    }
+                                }
+                            }
+                            override fun onReceivedHttpError(view: WebView, request: android.webkit.WebResourceRequest, response: android.webkit.WebResourceResponse) {
+                                if (request.isForMainFrame && (response.statusCode == 403 || response.statusCode == 429)) {
+                                    playerLoading = false
+                                    playerError = "MicroTV ne request block ki (HTTP " + response.statusCode + "). Website owner se app access allow karwana hoga."
+                                }
+                            }
+                            override fun onReceivedError(view: WebView, request: android.webkit.WebResourceRequest, error: android.webkit.WebResourceError) {
+                                if (request.isForMainFrame) {
+                                    playerLoading = false
+                                    playerError = "Page load nahi hua: " + error.description
+                                }
+                            }
+                        }
                         webChromeClient = object : WebChromeClient() {
                             private var customView: View? = null
                             private var customContainer: FrameLayout? = null
@@ -223,6 +255,20 @@ private fun MicroTvApp() {
                     if (view.url != selected!!.url) view.loadUrl(selected!!.url)
                 }
             )
+            if (playerLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            playerError?.let { message ->
+                Column(Modifier.fillMaxWidth().padding(20.dp).background(Color(0xFF17133B), RoundedCornerShape(18.dp)).padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Playback unavailable", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text(message, color = Color.White)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(selected!!.url))) }) {
+                        Text("Open in browser")
+                    }
+                    TextButton(onClick = { playerError = null; playerLoading = true }) { Text("Retry") }
+                }
+            }
+            }
         }
     } else {
         Scaffold(
