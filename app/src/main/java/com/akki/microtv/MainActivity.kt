@@ -36,6 +36,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
+import org.json.JSONArray
+import org.json.JSONObject
 
 private const val HOME = "https://m.microtv.st/"
 private const val MAX_PAGE = 36
@@ -92,11 +94,23 @@ private fun MicroTvApp() {
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Home") }
     var page by remember { mutableIntStateOf(1) }
-    var history by remember {
-        mutableStateOf(context.getSharedPreferences("akki_microtv", 0)
-            .getStringSet("history", emptySet())?.toList() ?: emptyList())
-    }
     val prefs = remember { context.getSharedPreferences("akki_microtv", 0) }
+    var history by remember {
+        mutableStateOf(run {
+            val raw = prefs.getString("history_items", null)
+            if (raw == null) emptyList() else try {
+                val array = JSONArray(raw)
+                (0 until array.length()).mapNotNull { i ->
+                    val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                    val title = obj.optString("title")
+                    val url = obj.optString("url")
+                    if (title.isNotBlank() && url.startsWith("https://m.microtv.st/"))
+                        ShowItem(title, url, obj.optString("image").takeIf { it.isNotBlank() }) else null
+                }
+            } catch (_: Exception) { emptyList() }
+        })
+    }
+    var allSearchResults by remember { mutableStateOf<List<ShowItem>?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load(target: Int) {
@@ -211,7 +225,7 @@ private fun MicroTvApp() {
                     OutlinedTextField(
                         value = query, onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        placeholder = { Text("Search dramas on this page") },
+                        placeholder = { Text("Search dramas") },
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         singleLine = true, shape = RoundedCornerShape(18.dp)
                     )
@@ -226,8 +240,8 @@ private fun MicroTvApp() {
                 }
             }
         ) { padding ->
-            val visible = if (tab == "History") items.filter { it.url in history }
-                else items.filter { it.title.contains(query, true) }
+            val sourceItems = if (tab == "History") history else (allSearchResults ?: items)
+            val visible = if (tab == "History") sourceItems else sourceItems.filter { it.title.contains(query, true) }
             LazyColumn(
                 Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -240,13 +254,32 @@ private fun MicroTvApp() {
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(vertical = 10.dp)) }
                     if (error != null) TextButton(onClick = { load(page) }) { Text("Try again") }
+                    if (tab == "Home" && query.isNotBlank()) {
+                        TextButton(onClick = {
+                            scope.launch {
+                                loading = true
+                                error = null
+                                try {
+                                    val found = linkedMapOf<String, ShowItem>()
+                                    for (p in 1..MAX_PAGE) fetchPage(p).forEach { found.putIfAbsent(it.url, it) }
+                                    allSearchResults = found.values.toList()
+                                } catch (_: Exception) {
+                                    error = "Catalogue search complete nahi ho payi. Internet check karke retry karein."
+                                } finally { loading = false }
+                            }
+                        }, enabled = !loading) { Text(if (allSearchResults == null) "Search all 36 pages" else "Refresh all-page results") }
+                    }
                 }
                 items(visible, key = { it.url }) { item ->
                     Card(
                         Modifier.fillMaxWidth().clickable {
                             selected = item
-                            history = (listOf(item.url) + history.filterNot { it == item.url }).take(40)
-                            prefs.edit().putStringSet("history", history.toSet()).apply()
+                            history = (listOf(item) + history.filterNot { it.url == item.url }).take(40)
+                                                        val saved = JSONArray()
+                                                        history.forEach { entry ->
+                                                            saved.put(JSONObject().put("title", entry.title).put("url", entry.url).put("image", entry.image ?: ""))
+                                                        }
+                                                        prefs.edit().putString("history_items", saved.toString()).apply()
                         },
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
