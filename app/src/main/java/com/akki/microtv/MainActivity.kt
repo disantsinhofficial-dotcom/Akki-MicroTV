@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 
@@ -49,6 +50,7 @@ private fun MicroTvApp() {
     var selected by remember { mutableStateOf<ShowItem?>(null) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Home") }
+    val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences("akki_microtv", 0) }
     var history by remember { mutableStateOf(prefs.getStringSet("history", emptySet())?.toList() ?: emptyList()) }
 
@@ -121,7 +123,7 @@ private fun MicroTvApp() {
                     Text(if (tab == "History") "Recently opened" else "Explore dramas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 10.dp)) }
-                    if (error != null) TextButton(onClick = { kotlinx.coroutines.MainScope().launch { loadCatalogue() } }) { Text("Try again") }
+                    if (error != null) TextButton(onClick = { scope.launch { loadCatalogue() } }) { Text("Try again") }
                 }
                 items(visible, key = { it.url }) { item ->
                     Card(Modifier.fillMaxWidth().clickable {
